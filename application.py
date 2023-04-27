@@ -145,7 +145,25 @@ def check_port(val):
         sys.exit()
 
 
+# Method to check which reliability method is used
+def checkReliability(method):
 
+    # Checking if Stop & Wait is used
+    if method == 'stopWait':
+        print(f"Method is: {method}")
+
+    # Checking if GBN is used
+    elif method == 'gbn':
+        print(f"Method is: {method}")
+
+    # Checking if Selective-Repeat is used
+    elif method == 'SR':
+        print(f"Method is: {method}") 
+
+    # If no method is used a simple message is printed and the server closes
+    else:
+        print("No method is detected, try again.")
+        sys.exit()
 
 
 def threeWayHandshakeServer(server_socket):
@@ -170,26 +188,6 @@ def threeWayHandshakeServer(server_socket):
             if header_liste2[1] == 1:
                 print("Det virker")
 
-        sys.exit()
-
-# Method to check which reliability method is used
-def checkReliability(method):
-
-    # Checking if Stop & Wait is used
-    if method == 'stopWait':
-        print(f"Method is: {method}")
-
-    # Checking if GBN is used
-    elif method == 'gbn':
-        print(f"Method is: {method}")
-
-    # Checking if Selective-Repeat is used
-    elif method == 'SR':
-        print(f"Method is: {method}") 
-
-    # If no method is used a simple message is printed and the server closes
-    else:
-        print("No method is detected, try again.")
         sys.exit()
 
 
