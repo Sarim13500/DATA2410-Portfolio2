@@ -14,11 +14,11 @@ import sys
 
 
 # I integer (unsigned long) = 4bytes and H (unsigned short integer 2 bytes)
-# see the struct official page for more info SARIMMSKPPPP saqiii kakkiiiii
+# Se den offisielle struct siden for mer informasjon
 
 header_format = '!IIHH'
 
-# print the header size: total = 12
+# Printer ut header størrelsen: Total = 12
 print(f'size of the header = {calcsize(header_format)}')
 
 
@@ -120,11 +120,8 @@ print(f'syn_flag = {syn}, fin_flag={fin}, and ack_flag={ack}')
 
 
 
-
-
-
-
 def ip_check(address):
+    # Her så sjekker vi ip adressen, hvis ip er feil så sender vi ut en feilmelding
     try:
         val= ipaddress.ip_address(address)
     except:
@@ -136,37 +133,74 @@ def ip_check(address):
 
 
 def check_port(val):
+    # Her sjekker vi porten, hvis porten er feil så sender vi ut en feilmelding
     try:
         value = int(val)
     except ValueError:
         raise argparse.ArgumentTypeError('expected an integer but you entered a string')
+    # If setning for å sjekke at porten er innenfor gitt verdi
     if (value<1024 or value>65535):
         print('it is not a valid port')
         sys.exit()
 
+# Metode for å sjekke hvilken metode som er mest sikker
+def checkReliability(method):
+
+    # Sjekker om Stop & Wait bli brukt
+    if method == 'stopWait':
+        print(f"Method is: {method}")
+
+    # Sjekker om GBN blir brukt
+    elif method == 'gbn':
+        print(f"Method is: {method}")
+
+    # Sjekker om Selective-Repeat blir brukt
+    elif method == 'SR':
+        print(f"Method is: {method}")
+
+
+    # If no method is used a simple message is printed and the server closes Hvis ingen av
+    else:
+        print("No method is detected, try again.")
+        sys.exit()
 
 
 
-
+# Denne koden implementerer en treveis håndhilsen protokoll på server-siden ved
+# hjelp av UDP-tilkobling. Protokollen sørger for å etablere en pålitelig forbindelse mellom klient og server.
+# Hvis protokollen fullføres vellykket, vil metoden skrive ut "Det virker". Hvis protokollen mislykkes,
+# vil metoden avslutte programmet
 def threeWayHandshakeServer(server_socket):
 
     while True:
+        # Mottar data fra klienten ved bruk av UDP-tilkobling, og lagrer dataene i variabler
         data, address = server_socket.recvfrom(1024)
 
+        # Henter de første 12 bytene av mottatt data og
+        # parser headeren for å konvertere den til en liste
         header = data[:12]
         header_liste = parse_header(header)
 
 
+
+
+        # Hvis den første verdien i header-listen er lik 1,lager vi en tom pakke ved bruk av "create_packet" funksjonen
+        # og sender pakken til klienten ved hjelp av UDP.
+        # Serveren sender en bekreftelsespakke tilbake til klienten for å signalisere at den er klar for å motta data
         if header_liste[0] == 1:
             tom_melding = 0
             packet = create_packet(1,1,0,0,tom_melding.to_bytes(4, byteorder='big'))
             server_socket.sendto(packet, address)
 
 
+            # Her mottar vi data fra klienten ved hjelp av UDP-tilkobling,
+            # og parser deretter headeren til mottatt data.
             data2, address = server_socket.recvfrom(1024)
 
             header2 = data2[:12]
             header_liste2 = parse_header(header2)
+            # Hvis den andre verdien i header-listen er lik 1, så har klienten mottatt serverens bekreftelsespakke
+            # og er klar for å fullføre protokollen. Printer ut melding og avslutter programmet
             if header_liste2[1] == 1:
                 print("Det virker")
 
@@ -177,22 +211,26 @@ def threeWayHandshakeServer(server_socket):
 
 
 
-
-
+# Her så vi implementerer treveis håndhilsen protokollen for en klient ved å
+# sende en pakke til serveren og vente på en bekreftelsespakke før den sender en ny pakke til
+# serveren for å fullføre protokollen.
 def threeWayHandshakeClient(client_socket, address):
-
+    # Her så vi sender en pakke til serveren med data i byte-format ved å
+    # konvertere dataverdien til bytes og sender pakken til serveren ved hjelp av UDP-tilkobling.
     data = 0
     enbytes = data.to_bytes(100, byteorder='big')
     packet = create_packet(1,0,0,0,enbytes)
     client_socket.sendto(packet, address)
 
-
-
+    # Her så mottar vi en respons fra serveren og henter ut header-delen av responsen,
+    # deretter konverterer headeren til en liste ved hjelp av en funksjon kalt parse_header().
     response, server_address = client_socket.recvfrom(1024)
     header = response[:12]
     header_liste = parse_header(header)
 
-
+    # Koden sjekker headeren i responsen fra serveren
+    # for å bekrefte at den mottok pakken riktig,
+    # og deretter sender en ny pakke med data til serveren for å fullføre håndhilsen protokollen.
     if header_liste[0] == 1 and header_liste[1] == 1:
         ny_packet = create_packet(0,1,0,0, enbytes)
 
@@ -212,11 +250,11 @@ def threeWayHandshakeClient(client_socket, address):
 
 def server(ip, port):
 
-    #Creating a server
+    #Oppretter Server
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind((ip, port))
 
-
+    # Printer ut melding om at server er online
     print("[Server] server online")
 
     threeWayHandshakeServer(sock)
@@ -237,7 +275,7 @@ def server(ip, port):
 
 def client(ip, port):
 
-    # Open a UDP socket on the client
+    # Åpne en UDP-socket på klienten
     client_socket = socket(AF_INET, SOCK_DGRAM)
 
     address = (ip,port)
@@ -255,8 +293,9 @@ if __name__ == '__main__':
 
 
 
-    #Checks the argument given when trying to run the program
-    #using argument parsing to take the arguments and check if they are correct
+
+    # Sjekker argumentet som er gitt når programmet kjører
+    # ved å bruke argument parsing for å ta argumentene og sjekke om de er korrekte.
 
     parser = argparse.ArgumentParser()
 
@@ -281,16 +320,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    #Will give an error when client and server both are asked to be active in one window
+    # Dette vil gi en feilmelding når klient og server spør samtidig om å være aktiv i et vindu
     if(args.server == True and args.client == True):
         print('Can´t have both server and client command')
         sys.exit()
 
 
-    #server code
+    #Server kode
     elif (args.server == True ):
 
-        #Checks some arguments to see if those are correct
+        #Sjekker noen argumenter, får å se at de er korrekt
 
         ip_check(args.IP)
         check_port(args.port)
@@ -300,7 +339,7 @@ if __name__ == '__main__':
 
 
 
-    #Client kode
+    # Klient Kode
     elif (args.client == True):
 
         ip_check(args.IP)
