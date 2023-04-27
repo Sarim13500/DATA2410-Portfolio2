@@ -159,6 +159,7 @@ def checkReliability(method):
         print(f"Method is: {method}")
 
 
+
     # If no method is used a simple message is printed and the server closes Hvis ingen av
     else:
         print("No method is detected, try again.")
