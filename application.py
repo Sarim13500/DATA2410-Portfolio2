@@ -14,7 +14,7 @@ import sys
 
 
 # I integer (unsigned long) = 4bytes and H (unsigned short integer 2 bytes)
-# see the struct official page for more info SARIMMSKPPPP saqiii kakkiiiii
+# see the struct official page for more info
 
 header_format = '!IIHH'
 
@@ -54,7 +54,7 @@ def parse_flags(flags):
     fin = flags & (1 << 1)
     return syn, ack, fin
 
-
+"""
 # now let's create a packet with sequence number 1
 print('\n\ncreating a packet')
 
@@ -114,7 +114,7 @@ print(f'seq={seq}, ack={ack}, flags={flags}, receiver-window={win}')
 syn, ack, fin = parse_flags(flags)
 print(f'syn_flag = {syn}, fin_flag={fin}, and ack_flag={ack}')
 
-
+"""
 
 
 
@@ -146,6 +146,8 @@ def check_port(val):
     if (value<1024 or value>65535):
         print('it is not a valid port')
         sys.exit()
+
+
 
 
 
@@ -278,14 +280,49 @@ def threeWayHandshakeClient(client_socket, address):
 
 
 
-def server(ip, port):
+def server(ip, port, reliable):
 
     #Oppretter Server
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind((ip, port))
 
+
+    reliable_sjekk, addresse = sock.recvfrom(1024)
+
+
+
+
     # Printer ut melding om at server er online
     print("[Server] server online")
+
+
+
+    #msg = reliable_sjekk.decode('utf-8')
+    msg = reliable_sjekk[12:]
+    msg = msg.decode('utf-8')
+
+
+    print(f"reliable: {msg}")
+    print(reliable)
+
+    print(len(msg))
+    print(len(reliable))
+
+    if msg == reliable:
+        reliable_respons = create_packet(0,1,0,0, reliable.encode('utf-8'))
+        sock.sendto(reliable_respons,addresse)
+        print("Eywa")
+
+    else:
+        print("DRTP metodene stemmer ikke overens")
+
+        reliable_respons = create_packet(0,0,0,0,reliable.encode('utf-8'))
+
+        sock.sendto(reliable_respons,addresse)
+        sys.exit()
+
+
+
 
     threeWayHandshakeServer(sock)
 
@@ -301,12 +338,33 @@ def server(ip, port):
 
 
 
-def client(ip, port, fil):
+def client(ip, port, fil, reliable):
 
     # Åpne en UDP-socket på klienten
     client_socket = socket(AF_INET, SOCK_DGRAM)
-
     address = (ip,port)
+
+    reliable_send = create_packet(0,0,0,0, reliable.encode('utf-8'))
+    client_socket.sendto(reliable_send, address)
+
+    reliable_godkjenning, address = client_socket.recvfrom(1024)
+
+    header = reliable_godkjenning[:12]
+
+    header_sjekk = parse_header(header)
+
+    print(header_sjekk)
+
+    if header_sjekk[1] == 1:
+        print("Eywa")
+    else:
+        print("DRTP metodene stemmer ikke overens")
+
+        sys.exit()
+
+
+
+
     threeWayHandshakeClient(client_socket, address)
 
 
@@ -375,7 +433,7 @@ if __name__ == '__main__':
         ip_check(args.IP)
         check_port(args.port)
 
-        server(args.IP, args.port)
+        server(args.IP, args.port, args.reliable)
 
 
 
@@ -386,4 +444,4 @@ if __name__ == '__main__':
         ip_check(args.IP)
         check_port(args.port)
 
-        client(args.IP, args.port, args.file)
+        client(args.IP, args.port, args.file, args.reliable)
