@@ -192,6 +192,7 @@ def threeWayHandshakeClient(client_socket, address):
     header = response[:12]
     header_liste = parse_header(header)
 
+
     if header_liste[0] == 1 and header_liste[1] == 1:
         ny_packet = create_packet(0,1,0,0, enbytes)
 
@@ -266,6 +267,16 @@ if __name__ == '__main__':
     parser.add_argument('--IP', '-i', type=str, default='127.0.0.1')
 
     parser.add_argument('--port', '-p', type=int, default=8088)
+
+    parser.add_argument('--reliable', '-r', type=str, required=True)
+
+    parser.add_argument('--test_case', '-t', type=str)
+
+    parser.add_argument('--file', '-f', type=str)
+
+
+
+
 
     args = parser.parse_args()
 
