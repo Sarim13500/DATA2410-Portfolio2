@@ -14,7 +14,7 @@ import sys
 
 
 # I integer (unsigned long) = 4bytes and H (unsigned short integer 2 bytes)
-# see the struct official page for more info SARIMMSKPPPP
+# see the struct official page for more info SARIMMSKPPPP saqiii kakkiiiii
 
 header_format = '!IIHH'
 
