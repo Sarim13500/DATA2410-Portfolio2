@@ -188,14 +188,12 @@ def threeWayHandshakeServer(server_socket):
 
     while True:
         # Mottar data fra klienten ved bruk av UDP-tilkobling, og lagrer dataene i variabler
-        data, address = server_socket.recvfrom(1024)
+        data, address = server_socket.recvfrom(2000)
 
         # Henter de første 12 bytene av mottatt data og
         # parser headeren for å konvertere den til en liste
         header = data[:12]
         header_liste = parse_header(header)
-
-
 
 
 
@@ -211,14 +209,15 @@ def threeWayHandshakeServer(server_socket):
 
             # Her mottar vi data fra klienten ved hjelp av UDP-tilkobling,
             # og parser deretter headeren til mottatt data.
-            data2, address = server_socket.recvfrom(1024)
+            data2, address = server_socket.recvfrom(2000)
 
             header2 = data2[:12]
             header_liste2 = parse_header(header2)
             # Hvis den andre verdien i header-listen er lik 1, så har klienten mottatt serverens bekreftelsespakke
             # og er klar for å fullføre protokollen. Printer ut melding og avslutter programmet
-            if header_liste2[1] == 1:
-                print("Det virker")
+            if header_liste2[1] != 1:
+                print("Det var en feil. start på nytt")
+                sys.exit()
         break
 
 
@@ -227,6 +226,7 @@ def threeWayHandshakeServer(server_socket):
 # Her så vi implementerer treveis håndhilsen protokollen for en klient ved å
 # sende en pakke til serveren og vente på en bekreftelsespakke før den sender en ny pakke til
 # serveren for å fullføre protokollen.
+
 def threeWayHandshakeClient(client_socket, address):
     # Her så vi sender en pakke til serveren med data i byte-format ved å
     # konvertere dataverdien til bytes og sender pakken til serveren ved hjelp av UDP-tilkobling.
@@ -239,7 +239,7 @@ def threeWayHandshakeClient(client_socket, address):
 
     # Her så mottar vi en respons fra serveren og henter ut header-delen av responsen,
     # deretter konverterer headeren til en liste ved hjelp av en funksjon kalt parse_header().
-    response, server_address = client_socket.recvfrom(1024)
+    response, server_address = client_socket.recvfrom(2000)
     header = response[:12]
     header_liste = parse_header(header)
 
@@ -254,19 +254,82 @@ def threeWayHandshakeClient(client_socket, address):
 
 
 
-#def stop_and_wait_client(client_socket):
+def stop_and_wait_client(client_socket, addresse, fil):
+
+    packet_str = 1460
+    packets = {}
+    packet_num = 1
+    kjor = 1
+    ack_num = 0
+
+
+    with open(fil, 'rb') as file:
+
+        while kjor==1:
+
+            data = file.read(packet_str)
+            packet_name = f'packet{packet_num}'
+            packets[packet_name] = create_packet(packet_num,0,0,0,data)
+            client_socket.sendto(packets[f'packet{packet_num}'], addresse)
+
+
+            svar, addresse = client_socket.recvfrom(2000)
+
+            header = svar[:12]
+
+            header_liste = parse_header(header)
+
+
+            try:
+                client_socket.settimeout(0.5)
+
+                if header_liste[1] == packet_num:
+                    ack_num += 1
+                    packet_num += 1
+                else:
+                    break
+
+
+            except timeout:
+                packet_num += 1
+
+            if not data:
+                kjor=0
 
 
 
 
 
+def stop_and_wait_server(server_socket):
+
+    kjor =1
+    packet_nmr = 0
+    ack =1
+
+    while kjor==1:
+
+        packet, addresse = server_socket.recvfrom(2000)
+
+        header = packet[:12]
+
+        header = parse_header(header)
 
 
+        tom = ""
 
-#def stop_and_wait_server(server_client):
+        if packet_nmr+1 == header[0]:
+            packet_nmr += 1
+            send_packet = create_packet(0,ack,0,0,tom.encode('utf-8'))
+            server_socket.sendto(send_packet,addresse)
+            ack +=1
 
+        elif packet_nmr == header[0]:
+            kjor = 0
+            break
 
-
+        else:
+            send_packet = create_packet(0, 0, 0, 0, packet)
+            server_socket.sendto(send_packet, addresse)
 
 
 
@@ -287,9 +350,7 @@ def server(ip, port, reliable):
     sock.bind((ip, port))
 
 
-    reliable_sjekk, addresse = sock.recvfrom(1024)
-
-
+    reliable_sjekk, addresse = sock.recvfrom(2000)
 
 
     # Printer ut melding om at server er online
@@ -302,16 +363,11 @@ def server(ip, port, reliable):
     msg = msg.decode('utf-8')
 
 
-    print(f"reliable: {msg}")
-    print(reliable)
 
-    print(len(msg))
-    print(len(reliable))
 
     if msg == reliable:
         reliable_respons = create_packet(0,1,0,0, reliable.encode('utf-8'))
         sock.sendto(reliable_respons,addresse)
-        print("Eywa")
 
     else:
         print("DRTP metodene stemmer ikke overens")
@@ -322,15 +378,10 @@ def server(ip, port, reliable):
         sys.exit()
 
 
-
-
     threeWayHandshakeServer(sock)
 
+    stop_and_wait_server(sock)
 
-    while True:
-        mld, address = sock.recvfrom(1024)
-
-        print(mld)
 
 
 
@@ -347,16 +398,15 @@ def client(ip, port, fil, reliable):
     reliable_send = create_packet(0,0,0,0, reliable.encode('utf-8'))
     client_socket.sendto(reliable_send, address)
 
-    reliable_godkjenning, address = client_socket.recvfrom(1024)
+    reliable_godkjenning, address = client_socket.recvfrom(2000)
 
     header = reliable_godkjenning[:12]
 
     header_sjekk = parse_header(header)
 
-    print(header_sjekk)
 
     if header_sjekk[1] == 1:
-        print("Eywa")
+        print("DRTP kodene er like")
     else:
         print("DRTP metodene stemmer ikke overens")
 
@@ -368,21 +418,9 @@ def client(ip, port, fil, reliable):
     threeWayHandshakeClient(client_socket, address)
 
 
-    with open(fil, 'rb') as file:
-        packet_str = 300    #NB! MÅ ENDRES TIL 1460
-        packets = {}
-        packet_num = 1
-        while True:
-            data = file.read(packet_str)
-            packet_name = f'packet{packet_num}'
-            packets[packet_name] = data
-            if not data:
-                break
 
-            client_socket.sendto(packets[f'packet{packet_num}'], address)
-            packet_num += 1
-    print(packets['packet1'])
-    print(packets['packet2'])
+
+    stop_and_wait_client(client_socket, address, fil)
 
 
 
