@@ -153,7 +153,7 @@ def check_port(val):
 
 
 # Metode for å sjekke hvilken metode som er mest sikker
-def checkReliability(method):
+def checkReliability(method, program):
 
     # Sjekker om Stop & Wait bli brukt
     if method == 'stopWait':
@@ -334,9 +334,181 @@ def stop_and_wait_server(server_socket):
 
 
 
+def gbn_client(client_socket, address, file):
+    packet_size = 1460
+    packets = {}
+    packet_num = 1
+    window_size = 5
+    ack_num = 0
+    base = 1
+    packets_sent = False
+
+    with open(file, 'rb') as file:
+        while not packets_sent:
+            for i in range(base, min(base + window_size, packet_num + 1)):
+                if i not in packets:
+                    data = file.read(packet_size)
+                    if not data:
+                        packets_sent = True
+                        break
+                    packet_name = f'packet{i}'
+                    packets[packet_name] = create_packet(i, 0, 0, 0, data)
+                client_socket.sendto(packets[f'packet{i}'], address)
+
+            try:
+                client_socket.settimeout(0.5)
+                while True:
+                    response, _ = client_socket.recvfrom(2000)
+                    header = response[:12]
+                    header_list = parse_header(header)
+                    if header_list[1] == base:
+                        ack_num = header_list[1]
+                        base += 1
+                    elif header_list[1] > base:
+                        base = header_list[1]
+                    if base > packet_num:
+                        packets_sent = True
+                        break
+            except timeout:
+                pass
 
 
-#def DRTP (IP, Port, metode):
+
+
+
+
+
+def gbn_server(server_socket):
+    packet_size = 1460
+    packet_num = 1
+    ack = 1
+    base = 1
+    kjor = True
+    packets = {}
+
+    while kjor:
+        packet, address = server_socket.recvfrom(2000)
+        header = packet[:12]
+        header_list = parse_header(header)
+
+        if header_list[0] == packet_num:
+            data = packet[12:]
+            packet_name = f'packet{packet_num}'
+            packets[packet_name] = packet
+            server_socket.sendto(create_packet(packet_num, ack, 0, 0, "".encode('utf-8')), address)
+            packet_num += 1
+            ack += 1
+
+        elif header_list[0] < packet_num:
+            server_socket.sendto(create_packet(header_list[0], ack, 0, 0, "".encode('utf-8')), address)
+
+        if header_list[1] == base:
+            while f'packet{base}' in packets:
+                server_socket.sendto(packets[f'packet{base}'], address)
+                base += 1
+
+        if packet_size != len(packet) - 12:
+            kjor = False
+
+
+
+
+
+
+def selective_repeat_server(server_socket):
+    buffer = {}
+    buffer_size = 10
+    buffer_start = 1
+    buffer_end = buffer_start + buffer_size - 1
+    kjor = 1
+
+    while kjor == 1:
+        packet, address = server_socket.recvfrom(2000)
+        header = packet[:12]
+        header = parse_header(header)
+
+        if header[0] >= buffer_start and header[0] <= buffer_end:
+            if header[0] not in buffer:
+                buffer[header[0]] = packet
+                if header[0] == buffer_start:
+                    while buffer_start in buffer:
+                        server_socket.sendto(buffer[buffer_start], address)
+                        del buffer[buffer_start]
+                        buffer_start += 1
+                        buffer_end += 1
+        ack_packet = create_packet(0, header[0], 0, 0, "")
+        server_socket.sendto(ack_packet, address)
+
+
+
+
+
+
+def selective_repeat_client(client_socket, address, filename):
+    packet_size = 1460
+    packets = {}
+    packet_num = 1
+    base = 1
+    window_size = 5
+    packets_sent = False
+
+    with open(filename, 'rb') as file:
+        while not packets_sent:
+            while packet_num < base + window_size and not packets_sent:
+                data = file.read(packet_size)
+                if data:
+                    packet = create_packet(packet_num, 0, 0, 0, data)
+                    packets[f'packet{packet_num}'] = packet
+                    client_socket.sendto(packet, address)
+                    packet_num += 1
+                else:
+                    packets_sent = True
+
+            try:
+                client_socket.settimeout(0.5)
+                while True:
+                    response, _ = client_socket.recvfrom(2000)
+                    header = response[:12]
+                    header_list = parse_header(header)
+                    if header_list[1] >= base and header_list[1] <= base + window_size - 1:
+                        if header_list[1] in packets:
+                            del packets[f'packet{header_list[1]}']
+                        base = header_list[1] + 1
+                    if base > packet_num - 1:
+                        packets_sent = True
+                        break
+            except timeout:
+                pass
+
+
+
+
+
+
+def DRTP_server (socket, metode):
+
+    if metode == 'stopWait':
+        stop_and_wait_server(socket)
+
+    elif metode == "GBN":
+        gbn_server(socket)
+
+    elif metode == "SR":
+        selective_repeat_server(socket)
+
+
+def DRTP_client (socket, addresse, metode, fil):
+
+
+    if metode == "stopWait":
+            stop_and_wait_client(socket, addresse ,fil)
+
+    elif metode == "GBN":
+            gbn_client(socket, addresse, fil)
+
+
+    elif metode == "SR":
+            selective_repeat_client(socket, addresse, fil)
 
 
 
@@ -380,8 +552,8 @@ def server(ip, port, reliable):
 
     threeWayHandshakeServer(sock)
 
-    stop_and_wait_server(sock)
 
+    DRTP_server(sock, reliable)
 
 
 
@@ -413,14 +585,11 @@ def client(ip, port, fil, reliable):
         sys.exit()
 
 
-
-
     threeWayHandshakeClient(client_socket, address)
 
 
+    DRTP_client(client_socket, address, reliable, fil )
 
-
-    stop_and_wait_client(client_socket, address, fil)
 
 
 
