@@ -7,6 +7,7 @@
 
 import argparse
 import ipaddress
+import time
 from struct import *
 from socket import *
 import sys
@@ -54,74 +55,6 @@ def parse_flags(flags):
     fin = flags & (1 << 1)
     return syn, ack, fin
 
-"""
-# now let's create a packet with sequence number 1
-print('\n\ncreating a packet')
-
-data = b'0' * 1460
-print(f'app data for size ={len(data)}')
-
-sequence_number = 1
-acknowledgment_number = 0
-window = 0  # window value should always be sent from the receiver-side
-flags = 0  # we are not going to set any flags when we send a data packet
-
-# msg now holds a packet, including our custom header and data
-msg = create_packet(sequence_number, acknowledgment_number, flags, window, data)
-
-# now let's look at the header
-# we already know that the header is in the first 12 bytes
-
-header_from_msg = msg[:12]
-print(len(header_from_msg))
-
-# now we get the header from the parse_header function
-# which unpacks the values based on the header_format that
-# we specified
-seq, ack, flags, win = parse_header(header_from_msg)
-print(f'seq={seq}, ack={ack}, flags={flags}, recevier-window={win}')
-
-# let's extract the data_from_msg that holds
-# the application data of 1460 bytes
-data_from_msg = msg[12:]
-print(len(data_from_msg))
-
-# let's mimic an acknowledgment packet from the receiver-end
-# now let's create a packet with acknowledgment number 1
-# an acknowledgment packet from the receiver should have no data
-# only the header with acknowledgment number, ack_flag=1, win=6400
-data = b''
-print('\n\nCreating an acknowledgment packet:')
-print(f'this is an empty packet with no data ={len(data)}')
-
-sequence_number = 0
-acknowledgment_number = 1  # an ack for the last sequnce
-window = 0  # window value should always be sent from the receiver-side
-
-# let's look at the last 4 bits:  S A F R
-# 0 0 0 0 represents no flags
-# 0 1 0 0  ack flag set, and the decimal equivalent is 4
-flags = 4
-
-msg = create_packet(sequence_number, acknowledgment_number, flags, window, data)
-print(f'this is an acknowledgment packet of header size={len(msg)}')
-
-# let's parse the header
-seq, ack, flags, win = parse_header(msg)  # it's an ack message with only the header
-print(f'seq={seq}, ack={ack}, flags={flags}, receiver-window={win}')
-
-# now let's parse the flag field
-syn, ack, fin = parse_flags(flags)
-print(f'syn_flag = {syn}, fin_flag={fin}, and ack_flag={ack}')
-
-"""
-
-
-
-
-
-
-
 
 
 def ip_check(address):
@@ -131,8 +64,6 @@ def ip_check(address):
     except:
         print("The IP-address is in the wrong format")
         sys.exit()
-
-
 
 
 
@@ -146,34 +77,6 @@ def check_port(val):
     if (value<1024 or value>65535):
         print('it is not a valid port')
         sys.exit()
-
-
-
-
-
-
-# Metode for å sjekke hvilken metode som er mest sikker
-def checkReliability(method, program):
-
-    # Sjekker om Stop & Wait bli brukt
-    if method == 'stopWait':
-        print(f"Method is: {method}")
-
-    # Sjekker om GBN blir brukt
-    elif method == 'gbn':
-        print(f"Method is: {method}")
-
-    # Sjekker om Selective-Repeat blir brukt
-    elif method == 'SR':
-        print(f"Method is: {method}")
-
-
-
-    # If no method is used a simple message is printed and the server closes Hvis ingen av
-    else:
-        print("No method is detected, try again.")
-        sys.exit()
-
 
 
 
@@ -298,6 +201,8 @@ def stop_and_wait_client(client_socket, addresse, fil, test_case):
                 packet_num += 1
 
             if not data:
+                finished_packet = create_packet(0,0,1,0, "".encode("utf-8"))
+                client_socket.sendto(finished_packet, addresse)
                 kjor=0
 
 
@@ -311,13 +216,18 @@ def stop_and_wait_server(server_socket, test_case):
     ack =1
 
     while kjor==1:
-
         packet, addresse = server_socket.recvfrom(2000)
 
         header = packet[:12]
 
         header = parse_header(header)
 
+        if header[2] == 1:
+            print("[SERVER] Finished")
+            print("[SERVER] closing...")
+            time.sleep(1)
+            print("[SERVER] closed")
+            break
 
         tom = ""
 
@@ -361,12 +271,15 @@ def gbn_client(client_socket, address, file, test_case):
                 if i not in packets:
                     # Read data from the file and create a packet
                     data = file.read(packet_size)
+
                     if not data:
                         # All data has been read from the file
                         packets_sent = True
                         break
                     packet_name = f'packet{i}'
                     packets[packet_name] = create_packet(i, 0, 0, 0, data)
+
+
                 # Send the packet
                 client_socket.sendto(packets[f'packet{i}'], address)
 
@@ -392,6 +305,9 @@ def gbn_client(client_socket, address, file, test_case):
             # If the sender times out waiting for an acknowledgment
             except timeout:
                 pass
+
+        finished_packet = create_packet(0, 0, 1, 0, "".encode("utf-8"))
+        client_socket.sendto(finished_packet, address)
 
 
 
@@ -444,6 +360,13 @@ def gbn_server(server_socket, test_case):
         if packet_size != len(packet) - 12:
             kjor = False
 
+        if header_list[2] ==1:
+            print("[SERVER] Finished")
+            print("[SERVER] closing...")
+            time.sleep(1)
+            print("[SERVER] closed")
+            break
+
 
 
 
@@ -457,6 +380,8 @@ def selective_repeat_server(server_socket, test_case):
     kjor = 1
 
     while kjor == 1:
+
+        #for a more visually pleasing look in the server
         # Receive packet and parse header
         packet, address = server_socket.recvfrom(2000)
         header = packet[:12]
@@ -479,6 +404,13 @@ def selective_repeat_server(server_socket, test_case):
         if test_case != "skip_ack":
             ack_packet = create_packet(0, header[0], 0, 0, "".encode('utf-8'))
             server_socket.sendto(ack_packet, address)
+
+        if header[2] ==1:
+            print("[SERVER] Finished")
+            print("[SERVER] closing...")
+            time.sleep(1)
+            print("[SERVER] closed")
+            break
 
 
 
@@ -536,6 +468,9 @@ def selective_repeat_client(client_socket, address, filename, test_case):
                 # no acknowledgement received within timeout, continue sending packets
                 pass
 
+        finished_packet = create_packet(0, 0, 1, 0, "".encode("utf-8"))
+        client_socket.sendto(finished_packet, address)
+
 
 def DRTP_server (socket, metode, test_case):
 
@@ -547,6 +482,10 @@ def DRTP_server (socket, metode, test_case):
 
     elif metode == "SR":
         selective_repeat_server(socket, test_case)
+
+    else:
+        print("Gi en gyldig metode")
+
 
 
 def DRTP_client (socket, addresse, metode, fil, test_case):
@@ -561,6 +500,9 @@ def DRTP_client (socket, addresse, metode, fil, test_case):
 
     elif metode == "SR":
             selective_repeat_client(socket, addresse, fil, test_case)
+
+    else:
+        print("Gi en gyldig metode")
 
 
 
@@ -603,6 +545,7 @@ def server(ip, port, reliable, test_case):
 
 
     threeWayHandshakeServer(sock)
+
 
 
     DRTP_server(sock, reliable, test_case)
