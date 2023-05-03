@@ -84,7 +84,7 @@ def check_port(val):
 
 
 # Denne koden implementerer en three-way-handshake protokoll på ved hjelp av UDP-tilkobling.
-#  Protokollen sørger for å etablere en pålitelig forbindelse mellom klient og server.
+# Protokollen sørger for å etablere en pålitelig forbindelse mellom klient og server.
 # Hvis protokollen fullføres vellykket, vil metoden skrive ut. Hvis protokollen mislykkes,
 # vil metoden avslutte programmet
 def threeWayHandshakeServer(server_socket):
@@ -155,10 +155,15 @@ def threeWayHandshakeClient(client_socket, address):
         client_socket.sendto(ny_packet,address)
 
 
-
+# Her så Sender vi filen til serveren ved hjelp av stop-and-wait protokollen.
+# Leser filen bit for bit og sender hvert segment til serveren før den venter på en ACK-melding.
+# Hvis ACK-meldingen er mottatt, sender den neste biten av filen, og så videre.
+# Dersom det ikke mottas noen ACK-melding etter en viss tid, sender den samme biten igjen.
+# Til slutt sender den en avslutningsmelding til serveren når hele filen er sendt.
 
 def stop_and_wait_client(client_socket, addresse, fil, test_case):
 
+    # Oppretter variabler for videre bruk
     packet_str = 1460
     packets = {}
     packet_num = 1
@@ -251,58 +256,58 @@ def stop_and_wait_server(server_socket, test_case):
 
 
 def gbn_client(client_socket, address, file, test_case):
-    # Initialize variables
-    packet_size = 1460  # Maximum size of packet payload
-    packets = {}  # Dictionary to store packets to be sent
-    packet_num = 1  # Sequence number of the next packet to be sent
-    window_size = 5  # Size of the sender's window
-    ack_num = 0  # Sequence number of the last packet acknowledged by the receiver
-    base = 1  # Sequence number of the oldest unacknowledged packet
-    packets_sent = False  # Flag to indicate whether all packets have been sent
+    # Oppretter variabler for videre bruk
+    packet_size = 1460  # Maks str på pakkeinnhold
+    packets = {}  # Array for å lagre pakker som skal bli sendt
+    packet_num = 1  # SekvensNr til neste pakke som skal sendes
+    window_size = 5  # Størrelse til senderens vindu
+    ack_num = 0  # SekvensNr til den siste pakken som ble bekreftet av mottakeren
+    base = 1  # SekvensNr til den eldste ubekfreftet pakken
+    packets_sent = False  # Variabel som indikerer om alle pakkene har blitt sendt
 
-    # Open the file to be sent
+    # Åpner filen som skal sendes
     with open(file, 'rb') as file:
 
-        # Loop until all packets have been sent and acknowledged
+        # Kjører en while-løkke så lenge alle pakkene har blitt sendt og bekreftet
         while not packets_sent:
 
-            # Send packets in the sender's window
+            # Sender pakker i senderes window_size
             for i in range(base, min(base + window_size, packet_num + 1)):
                 if i not in packets:
-                    # Read data from the file and create a packet
+                    # Leser data fra filen og lager en pakke
                     data = file.read(packet_size)
 
                     if not data:
-                        # All data has been read from the file
+                        # All data-en har blitt lest fra filen
                         packets_sent = True
                         break
                     packet_name = f'packet{i}'
                     packets[packet_name] = create_packet(i, 0, 0, 0, data)
 
 
-                # Send the packet
+                # Sender pakkene
                 client_socket.sendto(packets[f'packet{i}'], address)
 
 
-            # Wait for acknowledgments from the receiver
+            # Venter på bekreftelse fra mottakeren
             try:
                 client_socket.settimeout(0.5)
                 while True:
                     response, _ = client_socket.recvfrom(2000)
                     header = response[:12]
                     header_list = parse_header(header)
-                    # If the acknowledgment is for the next expected packet
+                    # Hvis bekreftelsen er for den neste forventede pakken
                     if header_list[1] == base:
                         ack_num = header_list[1]
                         base += 1
-                    # If the acknowledgment is for a packet in the sender's window
+                    # Hvis bekreftelsen er for en pakke i senderes vindu
                     elif header_list[1] > base:
                         base = header_list[1]
-                    # If all packets have been acknowledged
+                    # Hvis alle pakker har blitt bekreftet
                     if base > packet_num:
                         packets_sent = True
                         break
-            # If the sender times out waiting for an acknowledgment
+            # Hvis avsenderen går tom for tid mens den venter på en bekreftelse
             except timeout:
                 pass
 
@@ -316,47 +321,48 @@ def gbn_client(client_socket, address, file, test_case):
 
 
 def gbn_server(server_socket, test_case):
-    packet_size = 1460   # maximum packet size
-    packet_num = 1      # expected packet number
-    ack = 1             # expected ACK number
-    base = 1            # base packet number for GBN
-    kjor = True         # server loop flag
-    packets = {}        # dictionary for storing packets
+    # Oppretter variabeler for videre bruk
+    packet_size = 1460
+    packet_num = 1
+    ack = 1
+    base = 1
+    kjor = True
+    packets = {}
 
     while kjor:
-        # Receive packet from client
+        # Mottar pakke fra klient
         packet, address = server_socket.recvfrom(2000)
 
-        # Parse packet header
+        # Parser pakke header
         header = packet[:12]
         header_list = parse_header(header)
 
-        # If the packet number is as expected, send an ACK and store the packet
+        # Hvis pakkeNr er som forventet, sender i en ACK  og lagrer pakken
         if header_list[0] == packet_num:
-            # Extract data from packet and store packet in dictionary
+            # Trekker ut data fra pakken og lagrer pakken i arrayet
             data = packet[12:]
             packet_name = f'packet{packet_num}'
             packets[packet_name] = packet
 
-            # Send an ACK with the expected ACK number
+            # Sender en ACK med de forventende ACK NR
             if test_case != "skip_ack":
                 server_socket.sendto(create_packet(packet_num, ack, 0, 0, "".encode('utf-8')), address)
 
-            # Update expected packet and ACK numbers
+            # Oppdaterer forventende pakke og ACK number
             packet_num += 1
             ack += 1
 
-        # If the packet number is less than expected, resend the ACK
+        # Hvis pakkeNR er mindre enn forventet, så send ACK på nytt
         elif header_list[0] < packet_num:
             server_socket.sendto(create_packet(header_list[0], ack, 0, 0, "".encode('utf-8')), address)
 
-        # If the received ACK number is equal to the base number, send all packets up to the next expected packet
+        # Hvis det mottatte ACK-Nr er lik Basis-NR, send alle pakker opp til neste forventede pakke
         if header_list[1] == base:
             while f'packet{base}' in packets:
                 server_socket.sendto(packets[f'packet{base}'], address)
                 base += 1
 
-        # If the received packet size is less than the expected packet size, exit loop
+        # Hvis den mottatte pakke størrelsen er mindre enn forventet pakkestørrelse, avslutter vi løkken
         if packet_size != len(packet) - 12:
             kjor = False
 
@@ -372,7 +378,7 @@ def gbn_server(server_socket, test_case):
 
 
 def selective_repeat_server(server_socket, test_case):
-    # Initialize variables
+    # Oppretter variabler for videre bruk
     buffer = {}
     buffer_size = 10
     buffer_start = 1
@@ -381,18 +387,18 @@ def selective_repeat_server(server_socket, test_case):
 
     while kjor == 1:
 
-        #for a more visually pleasing look in the server
-        # Receive packet and parse header
+        # For et mer visuelt tiltalende utseende på serveren
+        # Motta pakke og parse header
         packet, address = server_socket.recvfrom(2000)
         header = packet[:12]
         header = parse_header(header)
 
-        # Check if packet is in buffer window
+        # Sjekk om pakken er i buffer vinduet
         if header[0] >= buffer_start and header[0] <= buffer_end:
-            # Add packet to buffer if not already in buffer
+            # Legger til pakken til buffer hvis den ikke allerede er i buffer
             if header[0] not in buffer:
                 buffer[header[0]] = packet
-                # If packet is the next in sequence, send all contiguous packets
+                # Hvis pakken er den neste i rekkefølgen, send alle sammenhengende pakker
                 if header[0] == buffer_start:
                     while buffer_start in buffer:
                         server_socket.sendto(buffer[buffer_start], address)
@@ -400,7 +406,7 @@ def selective_repeat_server(server_socket, test_case):
                         buffer_start += 1
                         buffer_end += 1
 
-        # Send ACK packet unless test case skips ACKs
+        # Send ACK-pakke med mindre testcasene hopper over ACK
         if test_case != "skip_ack":
             ack_packet = create_packet(0, header[0], 0, 0, "".encode('utf-8'))
             server_socket.sendto(ack_packet, address)
@@ -415,21 +421,21 @@ def selective_repeat_server(server_socket, test_case):
 
 
 def selective_repeat_client(client_socket, address, filename, test_case):
-    # set packet size
+    # Setter pakke sin str lik 1460
     packet_size = 1460
 
-    # initialize packet dictionary, packet number, base, window size, and packets sent flag
+    # Oppretter variabler for videre bruk
     packets = {}
     packet_num = 1
     base = 1
     window_size = 5
     packets_sent = False
 
-    # open file to read data
+    # Åpner filen for å lese data
     with open(filename, 'rb') as file:
-        # loop until all packets are sent
+        # Kjører en loop så til alle pakkene er sendt
         while not packets_sent:
-            # send packets within the window size
+            # Sender pakker med samme window_size
             while packet_num < base + window_size and not packets_sent:
                 data = file.read(packet_size)
                 if data:
@@ -437,35 +443,35 @@ def selective_repeat_client(client_socket, address, filename, test_case):
                     if test_case =="loss" and packet_num ==1:
                         packet_num +=1
 
-                    # create packet with packet number and data, add to packet dictionary
+                    # Oppretter åakker med pakkenr og data, og legger til packet variablen
                     packet = create_packet(packet_num, 0, 0, 0, data)
                     packets[f'packet{packet_num}'] = packet
                     # send packet to receiver
                     client_socket.sendto(packet, address)
                     packet_num += 1
                 else:
-                    # all packets have been sent
+                    # Alle pakker har blitt sendt
                     packets_sent = True
 
-            # wait for acknowledgement packets from receiver
+            # Venter for bekreftelses-pakke fra mottakeren
             try:
                 client_socket.settimeout(0.5)
                 while True:
                     response, _ = client_socket.recvfrom(2000)
                     header = response[:12]
                     header_list = parse_header(header)
-                    # check if received packet is within the window
+                    # Sjekker om mottat pakken er innenfor window_size
                     if header_list[1] >= base and header_list[1] <= base + window_size - 1:
-                        # delete acknowledged packet from dictionary and update base
+                        # Sletter bekreftet pakke fra variablen og uppdaterer basen
                         if header_list[1] in packets:
                             del packets[f'packet{header_list[1]}']
                         base = header_list[1] + 1
-                    # check if all packets have been acknowledged
+                    # Sjekker om alle pakker har blitt bekreftet
                     if base > packet_num - 1:
                         packets_sent = True
                         break
             except timeout:
-                # no acknowledgement received within timeout, continue sending packets
+                # Okke noe bekreftelese motatt innenfor gitt tidsramme, forsetter å sende pakker
                 pass
 
         finished_packet = create_packet(0, 0, 1, 0, "".encode("utf-8"))
@@ -474,15 +480,18 @@ def selective_repeat_client(client_socket, address, filename, test_case):
 
 def DRTP_server (socket, metode, test_case):
 
+    # Hvis metoden er lik stopWait så kjører vi den
     if metode == 'stopWait':
         stop_and_wait_server(socket, test_case)
 
+    # Hvis metoden er lik GBN så kjører vi den
     elif metode == "GBN":
         gbn_server(socket, test_case)
-
+    # Hvis metoden er lik SR så kjører vi den
     elif metode == "SR":
         selective_repeat_server(socket, test_case)
 
+    # Hvis ingen av tilfelle så skriver vi ut en feilmelding
     else:
         print("Gi en gyldig metode")
 
@@ -490,17 +499,19 @@ def DRTP_server (socket, metode, test_case):
 
 def DRTP_client (socket, addresse, metode, fil, test_case):
 
-
+    # Hvis metoden er lik stopWait så kjører vi den
     if metode == "stopWait":
             stop_and_wait_client(socket, addresse ,fil, test_case)
 
+    # Hvis metoden er lik GBN så kjører vi den
     elif metode == "GBN":
             gbn_client(socket, addresse, fil, test_case)
 
-
+    # Hvis metoden er lik sr så kjører vi den
     elif metode == "SR":
             selective_repeat_client(socket, addresse, fil, test_case)
 
+    # Hvis ingen av tilfelle så skriver vi ut en feilmelding
     else:
         print("Gi en gyldig metode")
 
