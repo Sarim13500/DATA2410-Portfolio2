@@ -115,7 +115,7 @@ def threeWayHandshakeServer(server_socket):
 # serveren for å fullføre protokollen.
 
 def threeWayHandshakeClient(client_socket, address):
-    # Her så vi sender en pakke til serveren med data i byte-format ved å
+    # Her så sender vi en pakke til serveren med data i byte-format ved å
     # konvertere dataverdien til bytes og sender pakken til serveren ved hjelp av UDP-tilkobling.
     data = 0
     enbytes = data.to_bytes(100, byteorder='big')
@@ -146,7 +146,7 @@ def stop_and_wait_client(client_socket, addresse, fil, test_case):
     # Oppretter variabler for videre bruk
     packet_str = 1460  # Angir Str på pakken
     packets = {}  # Oppretter en tom array for å lagre pakker
-    packet_num = 1  # Angir Nummebere på første pakken
+    packet_num = 1  # Angir Nummber på første pakken
     kjor = 1  # Bestemme om programmet skal kjøre eller ikke
     ack_num = 0  # Angir Første anerkjennelsesnummeret som mottas fra mottakeren
 
@@ -157,7 +157,7 @@ def stop_and_wait_client(client_socket, addresse, fil, test_case):
             data = file.read(packet_str)  # Leser en pakke med en størrelse på 'packet_str' bytes fra filen
 
             if test_case == "loss" and packet_num == 1:  # Hvis test_case er 'loss' og pakkenummeret er 1:
-                packet_num += 1  # Øker pakkenummeret med 1
+                packet_num += 1  # Øker pakkenummeret med 1 for å få feil med vilje
 
             packet_name = f'packet{packet_num}'  # Setter navnet på pakken til 'packet_num'
             packets[packet_name] = create_packet(packet_num, 0, 0, 0,
@@ -197,18 +197,18 @@ def stop_and_wait_client(client_socket, addresse, fil, test_case):
 # Protokollen sørger for at pakker blir mottatt i riktig rekkefølge og håndterer eventuelle tapte
 # pakker ved å sende en bekreftelse med bekreftelsesnummer 0 og vente på å motta den tapte pakken på nytt. 
 def stop_and_wait_server(server_socket, test_case):
-    kjor = 1  # En flaggvariabel som indikerer om løkken skal fortsette å kjøre
+    kjor = 1  # En variabel som indikerer om løkken skal fortsette å kjøre
     packet_nmr = 0  # Initialiserer en variabel for å holde styr på pakkens nummer
     ack = 1  # Initialiserer bekreftelsesnummeret
 
-    while kjor == 1:  # Fortsett å kjøre løkken så lenge flaggvariabelen kjor er satt til 1
+    while kjor == 1:  # Fortsett å kjøre løkken så lenge variabelen kjor er satt til 1
         packet, addresse = server_socket.recvfrom(2000)  # Mottar en pakke fra klienten og dens addresse
 
-        header = packet[:12]  # Henter ut pakkehodet, som består av de første 12 byte av pakken
+        header = packet[:12]  # Henter ut header, som består av de første 12 byte av pakken
 
-        header = parse_header(header)  # Dekoder pakkehodet
+        header = parse_header(header)  # Dekoder header
 
-        if header[2] == 1:  # Hvis flaggbiten i pakkehodet er satt til 1, betyr det at klienten har ferdig overføringen
+        if header[2] == 1:  # Hvis fin flagget i header er satt til 1, betyr det at klienten har ferdig overføringen
             print("[SERVER] Finished")
             print("[SERVER] closing...")
             time.sleep(1)  # Venter i 1 sekund før programmet avsluttes
@@ -217,7 +217,7 @@ def stop_and_wait_server(server_socket, test_case):
 
         tom = ""  # Oppretter en tom streng
 
-        if packet_nmr + 1 == header[0]:  # Hvis pakkenummeret i pakkehodet er etterfølgeren til forventet pakkenummer
+        if packet_nmr + 1 == header[0]:  # Hvis pakkenummeret i header er etterfølgeren til forventet pakkenummer
             packet_nmr += 1  # Øker pakkenummeret med 1
 
             if test_case != "skip_ack":  # Sjekker om det er angitt en test som skal hoppe over bekreftelser
@@ -226,11 +226,11 @@ def stop_and_wait_server(server_socket, test_case):
                 server_socket.sendto(send_packet, addresse)  # Sender bekreftelsespakken til klienten
             ack += 1  # Øker bekreftelsesnummeret med 1
 
-        elif packet_nmr == header[0]:  # Hvis pakkenummeret i pakkehodet er lik forventet pakkenummer
-            kjor = 0  # Setter flaggvariabelen kjor til 0 for å bryte ut av løkken
+        elif packet_nmr == header[0]:  # Hvis pakkenummeret i header er lik forventet pakkenummer
+            kjor = 0  # Setter variabelen kjor til 0 for å bryte ut av løkken
             break  # Bryter ut av løkken
 
-        else:  # Hvis pakkenummeret i pakkehodet er mindre enn forventet pakkenummer
+        else:  # Hvis pakkenummeret i header er mindre enn forventet pakkenummer
             send_packet = create_packet(0, 0, 0, 0, packet)
             server_socket.sendto(send_packet, addresse)
 
@@ -353,7 +353,7 @@ def gbn_server(server_socket, test_case):
             break
 
 
-# Implementerer selektiv repeat-protokollen på server-siden. Mottar pakker, lagrer dem i en buffer,
+# Implementerer selective_repeat på server-siden. Mottar pakker, lagrer dem i en buffer,
 # og sender dem tilbake i riktig rekkefølge hvis de er innenfor bufferen.
 
 def selective_repeat_server(server_socket, test_case):
@@ -398,7 +398,7 @@ def selective_repeat_server(server_socket, test_case):
             break
 
 
-# Implementerer selektiv repeat-protokollen på klient-siden. Leser data fra en fil, og sender data i form av pakker.
+# Implementerer selective_repeat på klient-siden. Leser data fra en fil, og sender data i form av pakker.
 # Venter på bekreftelse fra serveren for å sikre at alle pakker har blitt mottatt før nye sendes.
 def selective_repeat_client(client_socket, address, filename, test_case):
     # Setter pakke sin str lik 1460
@@ -500,18 +500,22 @@ def DRTP_client(socket, addresse, metode, fil, test_case):
         print("Gi en gyldig metode")
 
 
+# Denne metoden oppretter en server som mottar en melding fra klienten og
+# sjekker om pålitelighetsmetoden stemmer overens.
+# Hvis meldingen er godkjent starter serveren DRTP-serveren
+# og gjennomfører three-way handshake med klienten.
 def server(ip, port, reliable, test_case):
     # Oppretter Server
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind((ip, port))
 
-    # Mottar pålitelighetstest-melding og sjekker om serveren og klienten er enige om pålitelighet
+    # Mottar melding fra klinten og sjekker om reliable metoden er det samme
     reliable_sjekk, addresse = sock.recvfrom(2000)
 
     # Printer ut melding om at server er online
     print("[Server] server online")
 
-    # Henter pålitelighetstest-melding fra dataene og sjekker om den stemmer overens med den forventede påliteligheten
+    # Henter reliable-melding fra dataene og sjekker om den stemmer overens med den forventede påliteligheten
     msg = reliable_sjekk[12:]
     msg = msg.decode('utf-8')
 
@@ -520,7 +524,7 @@ def server(ip, port, reliable, test_case):
         sock.sendto(reliable_respons, addresse)
 
     else:
-        # Hvis pålitelighetstest-meldingen ikke stemmer, sender serveren en negativ bekreftelse til klienten og
+        # Hvis reliable-meldingen ikke stemmer, sender serveren en negativ bekreftelse til klienten og
         # avslutter programmet
         print("DRTP metodene stemmer ikke overens")
 
@@ -535,30 +539,40 @@ def server(ip, port, reliable, test_case):
     # Starter DRTP-serveren
     DRTP_server(sock, reliable, test_case)
 
-
+# Denne metoden oppretter en UDP-socket på klienten og utfører en
+# threeWayHandshake for å etablere en DRTP-forbindelse med
+# en server på en gitt IP-adresse og portnummer.
+# Deretter sender den en fil til serveren ved hjelp
+# av den valgte reliable-metoden og utfører tester med test_case.
 def client(ip, port, fil, reliable, test_case):
     # Åpne en UDP-socket på klienten
     client_socket = socket(AF_INET, SOCK_DGRAM)
     address = (ip, port)
 
+    # Send en Reliable metode til serveren
     reliable_send = create_packet(0, 0, 0, 0, reliable.encode('utf-8'))
     client_socket.sendto(reliable_send, address)
 
+    # Motta en bekreftelse på reliable-metoden fra serveren
     reliable_godkjenning, address = client_socket.recvfrom(2000)
 
+    # Sjekk om DRTP-kodene er like på klienten og serveren
     header = reliable_godkjenning[:12]
 
     header_sjekk = parse_header(header)
 
+    # Sjekker om ACK-flagget er aktivt, hvis aktivt så er begge reliable metodene
+    # like for server og klient og da kan programmet kjøres som vanlig
     if header_sjekk[1] == 1:
         print("DRTP kodene er like")
     else:
         print("DRTP metodene stemmer ikke overens")
 
         sys.exit()
-
+    # Utfør threeWayHandshake med serveren
     threeWayHandshakeClient(client_socket, address)
 
+    # Kjør DRTP-klienten med valgt reliable-metoden
     DRTP_client(client_socket, address, reliable, fil, test_case)
 
 
