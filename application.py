@@ -60,7 +60,7 @@ def parse_flags(flags):
 def ip_check(address):
     # Her så sjekker vi ip adressen, hvis ip er feil så sender vi ut en feilmelding
     try:
-        val= ipaddress.ip_address(address)
+        val = ipaddress.ip_address(address)
     except:
         print("The IP-address is in the wrong format")
         sys.exit()
@@ -164,91 +164,93 @@ def threeWayHandshakeClient(client_socket, address):
 def stop_and_wait_client(client_socket, addresse, fil, test_case):
 
     # Oppretter variabler for videre bruk
-    packet_str = 1460
-    packets = {}
-    packet_num = 1
-    kjor = 1
-    ack_num = 0
+    packet_str = 1460      # Angir Str på pakken
+    packets = {}           # Oppretter en tom array for å lagre pakker
+    packet_num = 1         # Angir Nummebere på første pakken
+    kjor = 1               # Bestemme om programmet skal kjøre eller ikke
+    ack_num = 0            # Angir Første anerkjennelsesnummeret som mottas fra mottakeren
 
 
-    with open(fil, 'rb') as file:
+    with open(fil, 'rb') as file:    # Åpner en fil for lesing i binært modus
 
-        while kjor==1:
+        while kjor==1:               # En løkke som vil kjøre så lenge 'kjor' er satt til 1
 
-            data = file.read(packet_str)
+            data = file.read(packet_str)     # Leser en pakke med en størrelse på 'packet_str' bytes fra filen
 
-            if test_case == "loss" and packet_num ==1:
-                packet_num += 1
+            if test_case == "loss" and packet_num ==1:    # Hvis test_case er 'loss' og pakkenummeret er 1:
+                packet_num += 1                           # Øker pakkenummeret med 1
 
-            packet_name = f'packet{packet_num}'
-            packets[packet_name] = create_packet(packet_num,0,0,0,data)
-            client_socket.sendto(packets[f'packet{packet_num}'], addresse)
+            packet_name = f'packet{packet_num}'                             # Setter navnet på pakken til 'packet_num'
+            packets[packet_name] = create_packet(packet_num,0,0,0,data)     # Oppretter en ny pakke og legger den til i ordboken 'packets'
+            client_socket.sendto(packets[f'packet{packet_num}'], addresse)  # Sender pakken til serveren ved hjelp av 'sendto' funksjonen
 
 
-            svar, addresse = client_socket.recvfrom(2000)
+            svar, addresse = client_socket.recvfrom(2000)       # Mottar svar fra serveren og lagrer adressen i 'addresse'
 
-            header = svar[:12]
+            header = svar[:12]                                  # Henter ut headeren til mottatte pakke
 
-            header_liste = parse_header(header)
+            header_liste = parse_header(header)   # Kaller en funksjon for å analysere headeren og returnerer en liste med verdiene
 
 
             try:
-                client_socket.settimeout(0.5)
+                client_socket.settimeout(0.5)       # Setter en timeout på 0.5 sekunder på 'client_socket'
 
-                if header_liste[1] == packet_num:
-                    ack_num += 1
-                    packet_num += 1
-                else:
+                if header_liste[1] == packet_num:   # Hvis pakkenummeret i headeren er likt 'packet_num':
+                    ack_num += 1                 # Øker anerkjennelsesnummeret med 1
+                    packet_num += 1              # Øker pakkenummeret med 1
+                else:                            # Hvis pakkenummeret i headeren ikke er likt 'packet_num':
                     break
 
 
-            except timeout:
-                packet_num += 1
+            except timeout:                 # Hvis timeout-feil oppstår:
+                packet_num += 1             # Øker pakkenummeret med 1
 
-            if not data:
-                finished_packet = create_packet(0,0,1,0, "".encode("utf-8"))
-                client_socket.sendto(finished_packet, addresse)
-                kjor=0
-
-
+            if not data:                    # Hvis det ikke er mer data i filen:
+                finished_packet = create_packet(0,0,1,0, "".encode("utf-8"))      # Oppretter en ferdig-pakke
+                client_socket.sendto(finished_packet, addresse)                   # Sender ferdig-pakken til serveren ved hjelp av 'sendto' funksjonen
+                kjor=0                                                            # Setter 'kjor' til 0 og avslutter løkken
 
 
 
+# Denne koden implementerer en "stop and wait" protokoll på server-siden som tar
+# imot data pakker fra en klient og sender bekreftelser tilbake for hver mottatte pakke.
+# Protokollen sørger for at pakker blir mottatt i riktig rekkefølge og håndterer eventuelle tapte
+# pakker ved å sende en bekreftelse med bekreftelsesnummer 0 og vente på å motta den tapte pakken på nytt. 
 def stop_and_wait_server(server_socket, test_case):
 
-    kjor =1
-    packet_nmr = 0
-    ack =1
+    kjor =1            # En flaggvariabel som indikerer om løkken skal fortsette å kjøre
+    packet_nmr = 0     # Initialiserer en variabel for å holde styr på pakkens nummer
+    ack =1             # Initialiserer bekreftelsesnummeret
 
-    while kjor==1:
-        packet, addresse = server_socket.recvfrom(2000)
+    while kjor==1:     # Fortsett å kjøre løkken så lenge flaggvariabelen kjor er satt til 1
+        packet, addresse = server_socket.recvfrom(2000)  # Mottar en pakke fra klienten og dens addresse
 
-        header = packet[:12]
+        header = packet[:12]             # Henter ut pakkehodet, som består av de første 12 byte av pakken
 
-        header = parse_header(header)
+        header = parse_header(header)    # Dekoder pakkehodet
 
-        if header[2] == 1:
+        if header[2] == 1:               # Hvis flaggbiten i pakkehodet er satt til 1, betyr det at klienten har ferdig overføringen
             print("[SERVER] Finished")
             print("[SERVER] closing...")
-            time.sleep(1)
+            time.sleep(1)                # Venter i 1 sekund før programmet avsluttes
             print("[SERVER] closed")
-            break
+            break                        # Bryter ut av løkken
 
-        tom = ""
+        tom = ""                         # Oppretter en tom streng
 
-        if packet_nmr+1 == header[0]:
-            packet_nmr += 1
+        if packet_nmr+1 == header[0]:    # Hvis pakkenummeret i pakkehodet er etterfølgeren til forventet pakkenummer
+            packet_nmr += 1              # Øker pakkenummeret med 1
 
-            if test_case != "skip_ack":
-                send_packet = create_packet(0,ack,0,0,tom.encode('utf-8'))
-                server_socket.sendto(send_packet,addresse)
-            ack +=1
+            if test_case != "skip_ack":   # Sjekker om det er angitt en test som skal hoppe over bekreftelser
+                send_packet = create_packet(0,ack,0,0,tom.encode('utf-8'))     # Oppretter en bekreftelsespakke med angitt bekreftelsesnummer
+                server_socket.sendto(send_packet,addresse)                     # Sender bekreftelsespakken til klienten
+            ack +=1                                                            # Øker bekreftelsesnummeret med 1
 
-        elif packet_nmr == header[0]:
-            kjor = 0
-            break
+        elif packet_nmr == header[0]:    # Hvis pakkenummeret i pakkehodet er lik forventet pakkenummer
+            kjor = 0                     # Setter flaggvariabelen kjor til 0 for å bryte ut av løkken
+            break                        # Bryter ut av løkken
 
-        else:
+        else:                            # Hvis pakkenummeret i pakkehodet er mindre enn forventet pakkenummer
             send_packet = create_packet(0, 0, 0, 0, packet)
             server_socket.sendto(send_packet, addresse)
 
@@ -526,7 +528,7 @@ def server(ip, port, reliable, test_case):
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind((ip, port))
 
-
+    # Mottar pålitelighetstest-melding og sjekker om serveren og klienten er enige om pålitelighet
     reliable_sjekk, addresse = sock.recvfrom(2000)
 
 
@@ -535,7 +537,7 @@ def server(ip, port, reliable, test_case):
 
 
 
-    #msg = reliable_sjekk.decode('utf-8')
+    # Henter pålitelighetstest-melding fra dataene og sjekker om den stemmer overens med den forventede påliteligheten
     msg = reliable_sjekk[12:]
     msg = msg.decode('utf-8')
 
@@ -547,6 +549,7 @@ def server(ip, port, reliable, test_case):
         sock.sendto(reliable_respons,addresse)
 
     else:
+        # Hvis pålitelighetstest-meldingen ikke stemmer, sender serveren en negativ bekreftelse til klienten og avslutter programmet
         print("DRTP metodene stemmer ikke overens")
 
         reliable_respons = create_packet(0,0,0,0,reliable.encode('utf-8'))
@@ -554,11 +557,11 @@ def server(ip, port, reliable, test_case):
         sock.sendto(reliable_respons,addresse)
         sys.exit()
 
-
+     # Gjennomfører threeWayHandshake med klienten
     threeWayHandshakeServer(sock)
 
 
-
+     # Starter DRTP-serveren
     DRTP_server(sock, reliable, test_case)
 
 
