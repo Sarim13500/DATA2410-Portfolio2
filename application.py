@@ -200,6 +200,7 @@ def stop_and_wait_server(server_socket, test_case):
     kjor = 1  # En variabel som indikerer om løkken skal fortsette å kjøre
     packet_nmr = 0  # Initialiserer en variabel for å holde styr på pakkens nummer
     ack = 1  # Initialiserer bekreftelsesnummeret
+    mottatt_fil =""
 
     while kjor == 1:  # Fortsett å kjøre løkken så lenge variabelen kjor er satt til 1
         packet, addresse = server_socket.recvfrom(2000)  # Mottar en pakke fra klienten og dens addresse
@@ -219,10 +220,10 @@ def stop_and_wait_server(server_socket, test_case):
 
         if packet_nmr + 1 == header[0]:  # Hvis pakkenummeret i header er etterfølgeren til forventet pakkenummer
             packet_nmr += 1  # Øker pakkenummeret med 1
+            mottatt_fil += packet[12:]
 
             if test_case != "skip_ack":  # Sjekker om det er angitt en test som skal hoppe over bekreftelser
-                send_packet = create_packet(0, ack, 0, 0, tom.encode(
-                    'utf-8'))  # Oppretter en bekreftelsespakke med angitt bekreftelsesnummer
+                send_packet = create_packet(0, ack, 0, 0, tom.encode('utf-8'))  # Oppretter en bekreftelsespakke med angitt bekreftelsesnummer
                 server_socket.sendto(send_packet, addresse)  # Sender bekreftelsespakken til klienten
             ack += 1  # Øker bekreftelsesnummeret med 1
 
@@ -269,6 +270,7 @@ def gbn_client(client_socket, address, file, test_case):
 
                 # Sender pakkene
                 client_socket.sendto(packets[f'packet{i}'], address)
+                packet_num += 1
 
             # Venter på bekreftelse fra mottakeren
             try:
@@ -307,6 +309,7 @@ def gbn_server(server_socket, test_case):
     base = 1
     kjor = True
     packets = {}
+    motatt_fil =""
 
     while kjor:
         # Mottar pakke fra klient
@@ -320,6 +323,7 @@ def gbn_server(server_socket, test_case):
         if header_list[0] == packet_num:
             # Trekker ut data fra pakken og lagrer pakken i arrayet
             data = packet[12:]
+            motatt_fil += data
             packet_name = f'packet{packet_num}'
             packets[packet_name] = packet
 
@@ -363,6 +367,7 @@ def selective_repeat_server(server_socket, test_case):
     buffer_start = 1
     buffer_end = buffer_start + buffer_size - 1
     kjor = 1
+    motatt_fil=""
 
     while kjor == 1:
 
@@ -374,6 +379,8 @@ def selective_repeat_server(server_socket, test_case):
 
         # Sjekk om pakken er i buffer vinduet
         if header[0] >= buffer_start and header[0] <= buffer_end:
+
+            motatt_fil += packet[12:]
             # Legger til pakken til buffer hvis den ikke allerede er i buffer
             if header[0] not in buffer:
                 buffer[header[0]] = packet
