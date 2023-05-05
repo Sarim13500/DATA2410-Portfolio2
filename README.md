@@ -1,27 +1,26 @@
 # DATA2410-Portfolio2
-Here is the second porfolio/exam in the subject DATA2410 - Datanettverk og Skytjenester
+Her er den andre portoføljen/eksamen i faget DATA2410 - Datanettverk og Skytjenester
 
 
-To start the application you will need to open a terminal.
 
-To run the program write:
+For å starte applikasjonen må du kunne åpne en terminal.
+
+For å kjøre programmet skriv: 
 Python3 application.py
 
-Start server with
+Start serveren med:
 Python3 application.py -s
 
-Start the client with
-
+Start klienten med:
 Python3 application.py -c
 
-rest of the flags can be activated like this:
-
+Resten av flagene kan bli aktivert slik:
 python3 application.py -s -i <ip_address> -p <port_number> -r <reliable method> -t <test_case> - f <file to transfer>
 
-The reliable method to choose from are:
+De pålitelige metodene å velge mellom er:
 stopWait, GBN and SR
 
 
-The test cases that are availale are:
-"skip_ack" as well as "loss" for packet loss
+De test cases som er tilgjeglig:
+"skip_ack" også "loss" for pakke tap
 
